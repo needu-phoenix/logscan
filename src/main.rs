@@ -1,5 +1,6 @@
-
+use clap::Parser;
+use logscan::cli::Cli;
 fn main() {
-    println!("Hello, world!");
+    let args = Cli::parse();
+    println!("Args: {:?}", args);
 }
-
