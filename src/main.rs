@@ -1,6 +1,9 @@
+use std::error::Error;
 use clap::Parser;
-use logscan::cli::Cli;
-fn main() {
+use logscan::{cli::Cli, run};
+
+fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
-    println!("Args: {:?}", args);
+    run(args)?;
+    Ok(())
 }

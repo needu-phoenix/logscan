@@ -4,6 +4,8 @@ use std::path::PathBuf;
 /// Analyse web-server access logs and report statistics
 #[derive(Parser, Debug)]
 pub struct Cli {
+    #[arg(long, short)]
+    pub file_name: PathBuf,
     #[command(subcommand)]
     pub command: Commands,
     #[arg(long, value_enum, default_value_t=OutputFormat::Table, global=true)]
@@ -12,21 +14,17 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    Summary {
-        file_name: PathBuf,
-    },
+    /// Traffic statistics for the log
+    Summary ,
+    /// Top IP addresses by request count
     Top {
-        /// Path to logfile to analyse
-        file_name: PathBuf,
-        /// Number of top IPs to display
         #[arg(long, short, default_value_t = 10)]
         number: usize,
     },
-    Status {
-        file_name: PathBuf,
-    },
+    /// Breakdown by status code
+    Status,
+    /// Show lines matching a given status code
     Filter {
-        file_name: PathBuf,
         #[arg(short, long)]
         status: u16,
     },
