@@ -17,7 +17,7 @@ pub fn summarize<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) ->
         unique_ip: HashSet::new(),
         status_count: HashMap::new(),
         ignored: 0,
-        total_size: 0
+        total_size: 0,
     };
 
     let mut line = String::new();
@@ -33,7 +33,7 @@ pub fn summarize<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) ->
             };
 
             *stats.status_count.entry(key).or_insert(0) += 1;
-            stats.unique_ip.insert(log_line.ip.to_string());
+            stats.unique_ip.insert(log_line.ip);
             stats.total_size += log_line.size;
         } else {
             stats.ignored += 1;
@@ -50,9 +50,21 @@ pub fn summarize<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) ->
     Ok(())
 }
 
-fn output_json(_stats: &Stats) {
+fn output_table(stats: &Stats) {
+    let total: usize = stats.status_count.values().sum();
+    println!("{:<20}{:>10}", "Total requests:", total);
+    println!("{:<20}{:>10}", "Unique IPs:", stats.unique_ip.len());
+    println!("{:<20}{:>10}", "Total bytes:", stats.total_size);
+    println!("{:<20}{:>10}", "Ignored lines:", stats.ignored);
+    println!("\nStatus breakdown:");
+
+    for status in ["2xx", "3xx", "4xx", "5xx", "unknown"] {
+        if let Some(&count) = stats.status_count.get(status) {
+            let pct = count as f64 / total as f64 * 100.0;
+            println!("  {:<8}{:>10} -- ({:>4.1}%)", status, count, pct);
+        }
+    }
 }
 
-fn output_table(_stats: &Stats) {
-
+fn output_json(_stats: &Stats) {
 }

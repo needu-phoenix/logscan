@@ -10,7 +10,7 @@ pub fn run(cli: cli::Cli) -> Result<(), Box<dyn Error>> {
     let file = File::open(cli.file_name)?;
     let reader = BufReader::new(file);
 
-    let re = Regex::new(r#"^(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?P<identity>\S+)\s+(?P<user>\w+)\s+\[(?P<datetime>[^\]]*)\]\s+"(?P<method>\w+)\s+(?P<path>\S+)\s+(?P<protocol>[^"]*)"\s+(?P<status>\d{3})\s+(?P<size>\d+|-)"#)?;
+    let re = Regex::new(r#"^(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?P<identity>\S+)\s+(?P<user>\S+)\s+\[(?P<datetime>[^\]]*)\]\s+"(?P<method>\w+)\s+(?P<path>\S+)\s+(?P<protocol>[^"]*)"\s+(?P<status>\d{3})\s+(?P<size>\d+|-)"#)?;
 
     match cli.command {
         cli::Commands::Filter { status } =>  commands::filter::summarize(reader, status),

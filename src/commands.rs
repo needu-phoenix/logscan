@@ -6,22 +6,22 @@ pub mod filter;
 pub mod top;
 
 
-pub struct LogLine<'a> {
-    pub ip: &'a str,
-    pub method: &'a str,
-    pub path: &'a str,
+pub struct LogLine {
+    pub ip: String,
+    pub method: String,
+    pub path: String,
     pub status: u16,
     pub size: u64
 }
 
-pub fn parse_line<'s>(line: &'s str, re: &Regex) -> Option<LogLine<'s>> {
+pub fn parse_line(line: &str, re: &Regex) -> Option<LogLine> {
     let cap = re.captures(line)?;
     Some(
         LogLine {
-            ip: cap.name("ip")?.as_str(),
-            method: cap.name("method")?.as_str(),
-            path: cap.name("path")?.as_str(),
-            status: cap["status"].parse().unwrap_or(0),
+            ip: cap["ip"].to_string(),
+            method: cap["method"].to_string(),
+            path: cap["path"].to_string(),
+            status: cap["status"].parse().ok()?,
             size: cap["size"].parse().unwrap_or(0)
         }
     )

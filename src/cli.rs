@@ -4,10 +4,10 @@ use std::path::PathBuf;
 /// Analyse web-server access logs and report statistics
 #[derive(Parser, Debug)]
 pub struct Cli {
-    #[arg(long, short)]
-    pub file_name: PathBuf,
     #[command(subcommand)]
     pub command: Commands,
+    #[arg(long, short)]
+    pub file_name: PathBuf,
     #[arg(long, value_enum, default_value_t=OutputFormat::Table, global=true)]
     pub format: OutputFormat,
 }
