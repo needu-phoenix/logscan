@@ -16,7 +16,7 @@ pub fn run(cli: cli::Cli) -> Result<(), Box<dyn Error>> {
         cli::Commands::Filter { status } =>  commands::filter::summarize(reader, status),
         cli::Commands::Summary => commands::summary::summarize(reader, &re, cli.format)?,
         cli::Commands::Status => commands::status::summarize(reader),
-        cli::Commands::Top { number } => commands::top::summarize(reader, number)
+        cli::Commands::Top { number } => commands::top::summarize(reader, &re, number, cli.format)?
     }
     Ok(())
 }
