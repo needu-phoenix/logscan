@@ -12,7 +12,7 @@ struct Stats {
     total_size: u64
 }
 
-pub fn summarize<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> io::Result<()> {
+pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> io::Result<()> {
     let mut stats = Stats {
         unique_ip: HashSet::new(),
         status_count: HashMap::new(),
