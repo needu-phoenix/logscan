@@ -15,7 +15,7 @@ pub fn run(cli: cli::Cli) -> Result<(), Box<dyn Error>> {
     match cli.command {
         cli::Commands::Filter { status } =>  commands::filter::run(reader, status),
         cli::Commands::Summary => commands::summary::run(reader, &re, cli.format)?,
-        cli::Commands::Status => commands::status::run(reader),
+        cli::Commands::Status => commands::status::run(reader, &re, cli.format)?,
         cli::Commands::Top { number } => commands::top::run(reader, &re, number, cli.format)?
     }
     Ok(())
