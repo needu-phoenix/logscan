@@ -1,6 +1,14 @@
-use std::{collections::HashMap, io:: BufRead};
 use crate::{cli::OutputFormat, commands::parse_line, error::ScanError};
+use std::{collections::HashMap, io:: BufRead};
+use serde::Serialize;
 use regex::Regex;
+
+#[derive(Serialize)]
+struct StatusEntry {
+    status: u16,
+    count: usize,
+    meaning: &'static str
+}
 
 pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Result<(), ScanError> {
     let mut status_counts: HashMap<u16, usize> = HashMap::new();
@@ -14,18 +22,14 @@ pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Resul
     }
 
     match format {
-        OutputFormat::Json => output_json(status_counts),
-        OutputFormat::Table => output_table(status_counts),
+        OutputFormat::Json => output_json(status_counts)?,
+        OutputFormat::Table => output_table(status_counts)?,
     }
 
     Ok(())
 }
 
-fn output_json(_counts: HashMap<u16, usize>) {
-
-}
-
-fn output_table(counts: HashMap<u16, usize>) {
+fn output_table(counts: HashMap<u16, usize>) -> Result<(), ScanError>{
     let mut pairs: Vec<_> = counts.iter().collect();
     pairs.sort_by(|a,b| a.0.cmp(b.0));
 
@@ -34,7 +38,23 @@ fn output_table(counts: HashMap<u16, usize>) {
     for (index, (status, count)) in pairs.iter().enumerate() {
         println!("{:<5} {:<6} {:<6} {:<20}", index + 1, status, count, status_meaning(**status));
     }
+    Ok(())
+}
 
+fn output_json(counts: HashMap<u16, usize>) -> Result<(), ScanError> {
+    let mut pairs: Vec<_> = counts.iter().collect();
+    pairs.sort_by(|a,b| a.0.cmp(b.0));
+
+    let entries: Vec<StatusEntry> = pairs.iter()
+        .map(|(status, count)| StatusEntry {
+            status: **status,
+            count: **count,
+            meaning: status_meaning(**status)
+        })
+        .collect();
+
+    println!("{}", serde_json::to_string_pretty(&entries)?);
+    Ok(())
 }
 
 fn status_meaning(code: u16) -> &'static str {
