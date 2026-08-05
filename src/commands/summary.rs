@@ -1,6 +1,6 @@
-use crate::{cli::OutputFormat, commands::parse_line};
+use crate::{cli::OutputFormat, commands::parse_line, error::ScanError};
 use std::collections::{HashMap, HashSet};
-use std::io::{self, BufRead};
+use std::io::BufRead;
 use serde::Serialize;
 use regex::Regex;
 
@@ -12,7 +12,7 @@ struct Stats {
     total_size: u64
 }
 
-pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> io::Result<()> {
+pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Result<(), ScanError> {
     let mut stats = Stats {
         unique_ip: HashSet::new(),
         status_count: HashMap::new(),

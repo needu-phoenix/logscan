@@ -1,8 +1,8 @@
-use std::{collections::HashMap, io::{self, BufRead}};
-use crate::{cli::OutputFormat, commands::parse_line};
+use std::{collections::HashMap, io:: BufRead};
+use crate::{cli::OutputFormat, commands::parse_line, error::ScanError};
 use regex::Regex;
 
-pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> io::Result<()> {
+pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Result<(), ScanError> {
     let mut status_counts: HashMap<u16, usize> = HashMap::new();
     let mut line = String::new();
 

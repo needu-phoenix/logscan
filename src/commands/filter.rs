@@ -1,5 +1,5 @@
-use crate::{cli::OutputFormat, commands::parse_line};
-use std::io::{self, BufRead};
+use crate::{cli::OutputFormat, commands::parse_line,error:: ScanError};
+use std::io::BufRead;
 use serde::Serialize;
 use regex::Regex;
 
@@ -10,7 +10,7 @@ struct FilterEntry {
     size: u64
 }
 
-pub fn run<T: BufRead>(reader: T, status: u16, re: &Regex, format: OutputFormat) -> io::Result<()> {
+pub fn run<T: BufRead>(reader: T, status: u16, re: &Regex, format: OutputFormat) -> Result<(), ScanError> {
     match format {
         OutputFormat::Json => output_json(reader, status, re)?,
         OutputFormat::Table => output_table(reader, status, re)?
@@ -18,7 +18,7 @@ pub fn run<T: BufRead>(reader: T, status: u16, re: &Regex, format: OutputFormat)
     Ok(())
 }
 
-fn output_json<T: BufRead>(mut reader: T, status: u16, re: &Regex) -> io::Result<()> {
+fn output_json<T: BufRead>(mut reader: T, status: u16, re: &Regex) -> Result<(), ScanError> {
     let mut line = String::new();
     let mut matches: Vec<FilterEntry> = Vec::new();
     while reader.read_line(&mut line)? > 0 {
@@ -35,14 +35,13 @@ fn output_json<T: BufRead>(mut reader: T, status: u16, re: &Regex) -> io::Result
         line.clear();
     }
 
-    let json = serde_json::to_string_pretty(&matches)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let json = serde_json::to_string_pretty(&matches)?;
 
     println!("{}", json);
     Ok(())
 }
 
-fn output_table<T: BufRead>(mut reader: T, status: u16, re: &Regex) -> io::Result<()> {
+fn output_table<T: BufRead>(mut reader: T, status: u16, re: &Regex) -> Result<(), ScanError> {
     let mut line = String::new();
 
     println!("{:<20}{:<30}{:<5}", "IP", "PATH", "SIZE");

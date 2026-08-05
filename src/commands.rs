@@ -5,7 +5,6 @@ pub mod status;
 pub mod filter;
 pub mod top;
 
-
 pub struct LogLine {
     pub ip: String,
     pub method: String,

@@ -1,9 +1,10 @@
-use std::error::Error;
 use clap::Parser;
 use logscan::{cli::Cli, run};
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     let args = Cli::parse();
-    run(args)?;
-    Ok(())
+    if let Err(e) = run(args) {
+        eprintln!("error: {e}");
+        std::process::exit(1);
+    }
 }

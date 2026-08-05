@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File, io::BufReader};
+use std::{fs::File, io::BufReader};
 use regex::Regex;
 
 pub mod cli;
@@ -6,8 +6,9 @@ pub mod error;
 pub mod commands;
 
 
-pub fn run(cli: cli::Cli) -> Result<(), Box<dyn Error>> {
-    let file = File::open(cli.file_name)?;
+pub fn run(cli: cli::Cli) -> Result<(), error::ScanError> {
+    let file = File::open(&cli.file_name)
+        .map_err(|source| error::ScanError::Io { path: cli.file_name, source})?;
     let reader = BufReader::new(file);
 
     let re = Regex::new(r#"^(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?P<identity>\S+)\s+(?P<user>\S+)\s+\[(?P<datetime>[^\]]*)\]\s+"(?P<method>\w+)\s+(?P<path>\S+)\s+(?P<protocol>[^"]*)"\s+(?P<status>\d{3})\s+(?P<size>\d+|-)"#)?;
