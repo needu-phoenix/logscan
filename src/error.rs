@@ -1,42 +1,20 @@
-use std::{error, fmt, io, path::PathBuf};
+use std::{io, path::PathBuf};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ScanError {
-    Io { path: PathBuf, source: io::Error},
-    Read(io::Error),
-    Serialize(serde_json::Error),
-    Regex(regex::Error)
-}
+    #[error("failed to read '{path}': {source}")]
+    Io {
+        path: PathBuf, 
+        source: io::Error
+    },
 
-impl fmt::Display for ScanError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ScanError::Io { path, source } => {
-                write!(f, "failed to read '{}': {}", path.display(), source)
-            }
-            ScanError::Read(e) => write!(f, "error reading input: {e}"),
-            ScanError::Serialize(e) => write!(f, "failed to serialize output: {e}"),
-            ScanError::Regex(e) => write!(f, "invalid regex pattern: {e}")
-        }
-    }
-}
+    #[error("error reading input: {0}")]
+    Read(#[from] io::Error),
 
-impl error::Error for ScanError {}
+    #[error("failed to serialize output: {0}")]
+    Serialize(#[from] serde_json::Error),
 
-impl From<serde_json::Error> for ScanError {
-    fn from(e: serde_json::Error) -> Self {
-        ScanError::Serialize(e)
-    }
-}
-
-impl From<regex::Error> for ScanError {
-    fn from(e: regex::Error) -> Self {
-        ScanError::Regex(e)
-    }
-}
-
-impl From<io::Error> for ScanError {
-    fn from(e: io::Error) -> Self {
-        ScanError::Read(e)
-    }
+    #[error("invalid regex pattern: {0}")]
+    Regex(#[from] regex::Error)
 }
