@@ -4,7 +4,7 @@ use std::io::BufRead;
 use serde::Serialize;
 use regex::Regex;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct Stats {
     unique_ips: HashSet<String>,
     status_count: HashMap<&'static str, usize>,
@@ -21,7 +21,17 @@ struct SummaryOutput {
     status_breakdown: HashMap<&'static str, usize>,
 }
 
-pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Result<(), ScanError> {
+pub fn run<T: BufRead>(reader: T, re: &Regex, format: OutputFormat) -> Result<(), ScanError> {
+    let stats = compute(reader, re)?;
+    match format {
+        OutputFormat::Json => output_json(&stats)?,
+        OutputFormat::Table => output_table(&stats)?,
+    }
+
+    Ok(())
+}
+
+fn compute<T: BufRead>(mut reader: T, re: &Regex) -> Result<Stats, ScanError> {
     let mut stats = Stats {
         unique_ips: HashSet::new(),
         status_count: HashMap::new(),
@@ -51,12 +61,7 @@ pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Resul
         line.clear();
     }
 
-    match format {
-        OutputFormat::Json => output_json(&stats)?,
-        OutputFormat::Table => output_table(&stats)?,
-    }
-
-    Ok(())
+    Ok(stats)
 }
 
 fn output_table(stats: &Stats) -> Result<(), ScanError> {
@@ -88,4 +93,72 @@ fn output_json(stats: &Stats) -> Result<(), ScanError> {
 
     println!("{}", serde_json::to_string_pretty(&output)?);
     Ok(())
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::commands::LOG_PATTERN;
+    use std::io::Cursor;
+    use regex::Regex;
+    use super::*;
+
+    fn get_regex() -> Regex {
+        Regex::new(LOG_PATTERN).unwrap()
+    }
+
+    #[test]
+    fn count_total_request_works() {
+        let data = Cursor::new(vec![
+            r#"203.0.113.11 - - [10/Oct/2025:11:42:49 +0000] "GET /api/login HTTP/1.1" 404 0 "https://twitter.com/" "python-requests/2.31.0""#, 
+            r#"198.51.100.7 - - [10/Oct/2025:11:42:11 +0000] "GET /blog/post-2 HTTP/1.1" 301 - "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)""#,
+            r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#
+        ].join("\n"));
+
+        let re = get_regex();
+
+        let result = compute(data, &re);
+        let actual: usize = result.unwrap().status_count.values().sum();
+
+        assert_eq!(actual, 3);
+    }
+
+    #[test]
+    fn count_malformed_lines_works() {
+        let data = Cursor::new(vec![
+            r#"203.0.113.11 - - [10/Oct/2025:11:42:49 +0000] "/api/login HTTP/1.1" 404 0 "https://twitter.com/" "python-requests/2.31.0""#, 
+            r#"198.51.100.7 - - [10/Oct/2025:11:42:11 +0000] "GET /blog/post-2 HTTP/1.1"  - "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)""#,
+            r#"AB198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
+            r#"172.16.0.24 - - [10/Oct/2025:11:37:07 +0000] "GET /sitemap.xml HTTP/1.1" 400 128 "-" "python-requests/2.31.0""#,
+            r#"192.168.1.28 - alice [10/Oct/2025:11:36:47 +0000] "GET /robots.txt HTTP/1.1" 500 1547 "https://example.com/" "curl/8.4.0""#
+        ].join("\n"));
+
+        let re = get_regex();
+
+        let result = compute(data, &re).unwrap();
+        
+    
+        assert_eq!(result.ignored, 3);
+        assert_eq!(result.status_count.values().sum::<usize>(), 2);
+    }
+
+    #[test]
+    fn count_unique_ip_and_bytes() {
+        let data = Cursor::new(vec![
+            r#"203.0.113.11 - - [10/Oct/2025:11:42:49 +0000] "/api/login HTTP/1.1" 404 0 "https://twitter.com/" "python-requests/2.31.0""#, 
+            r#"198.51.100.7 - - [10/Oct/2025:11:42:11 +0000] "GET /blog/post-2 HTTP/1.1"  - "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)""#,
+            r#"AB198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
+            r#"172.16.0.24 - - [10/Oct/2025:11:37:07 +0000] "GET /sitemap.xml HTTP/1.1" 400 128 "-" "python-requests/2.31.0""#,
+            r#"192.168.1.28 - alice [10/Oct/2025:11:36:47 +0000] "GET /robots.txt HTTP/1.1" 500 1547 "https://example.com/" "curl/8.4.0""#,
+            r#"192.168.1.28 - alice [10/Oct/2025:11:36:47 +0000] "GET /robots.txt HTTP/1.1" 500 1547 "https://example.com/" "curl/8.4.0""#,
+            r#"172.16.0.24 - - [10/Oct/2025:11:37:07 +0000] "GET /sitemap.xml HTTP/1.1" 400 128 "-" "python-requests/2.31.0""#,
+        ].join("\n"));
+
+        let re = get_regex();
+
+        let result = compute(data, &re).unwrap();
+
+        assert_eq!(result.unique_ips.len(), 2);
+        assert_eq!(result.total_size, 3350);
+    }
 }

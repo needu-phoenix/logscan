@@ -5,6 +5,8 @@ pub mod status;
 pub mod filter;
 pub mod top;
 
+pub const LOG_PATTERN: &str = r#"^(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?P<identity>\S+)\s+(?P<user>\S+)\s+\[(?P<datetime>[^\]]*)\]\s+"(?P<method>\w+)\s+(?P<path>\S+)\s+(?P<protocol>[^"]*)"\s+(?P<status>\d{3})\s+(?P<size>\d+|-)"#;
+
 #[derive(PartialEq,Debug)]
 pub struct LogLine {
     pub ip: String,
@@ -29,11 +31,12 @@ pub fn parse_line(line: &str, re: &Regex) -> Option<LogLine> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_line, LogLine};
+
+    use super::{parse_line, LogLine, LOG_PATTERN};
     use regex::Regex;
 
     fn get_regex() -> Regex {
-        Regex::new(r#"^(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+(?P<identity>\S+)\s+(?P<user>\S+)\s+\[(?P<datetime>[^\]]*)\]\s+"(?P<method>\w+)\s+(?P<path>\S+)\s+(?P<protocol>[^"]*)"\s+(?P<status>\d{3})\s+(?P<size>\d+|-)"#).unwrap()
+        Regex::new(LOG_PATTERN).unwrap()
     }
 
     #[test]
