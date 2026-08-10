@@ -4,10 +4,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum ScanError {
     #[error("failed to read '{path}': {source}")]
-    Io {
-        path: PathBuf, 
-        source: io::Error
-    },
+    Io { path: PathBuf, source: io::Error },
 
     #[error("error reading input: {0}")]
     Read(#[from] io::Error),
@@ -16,5 +13,5 @@ pub enum ScanError {
     Serialize(#[from] serde_json::Error),
 
     #[error("invalid regex pattern: {0}")]
-    Regex(#[from] regex::Error)
+    Regex(#[from] regex::Error),
 }

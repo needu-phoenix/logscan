@@ -15,7 +15,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Traffic statistics for the log
-    Summary ,
+    Summary,
     /// Top IP addresses by request count
     Top {
         #[arg(long, short, default_value_t = 10)]

@@ -1,27 +1,31 @@
-use crate::{cli::OutputFormat, commands::parse_line,error:: ScanError};
-use std::io::BufRead;
-use serde::Serialize;
+use crate::{cli::OutputFormat, commands::parse_line, error::ScanError};
 use regex::Regex;
+use serde::Serialize;
+use std::io::BufRead;
 
 #[derive(Serialize, Debug)]
 struct FilterEntry {
     ip: String,
     path: String,
-    size: u64
+    size: u64,
 }
 
-fn compute<T: BufRead>(mut reader: T,re: &Regex, status: u16) -> Result<Vec<FilterEntry>, ScanError> {
+fn compute<T: BufRead>(
+    mut reader: T,
+    re: &Regex,
+    status: u16,
+) -> Result<Vec<FilterEntry>, ScanError> {
     let mut line = String::new();
     let mut matches: Vec<FilterEntry> = Vec::new();
     while reader.read_line(&mut line)? > 0 {
-        if let Some(log_line) = parse_line(&line, re) {
-            if log_line.status == status {
-                matches.push(FilterEntry { 
-                        ip: log_line.ip, 
-                        path: log_line.path, 
-                        size: log_line.size 
-                })
-            }
+        if let Some(log_line) = parse_line(&line, re)
+            && log_line.status == status
+        {
+            matches.push(FilterEntry {
+                ip: log_line.ip,
+                path: log_line.path,
+                size: log_line.size,
+            })
         }
 
         line.clear();
@@ -41,10 +45,13 @@ fn output_table<T: BufRead>(mut reader: T, status: u16, re: &Regex) -> Result<()
 
     println!("{:<20}{:<30}{:<5}", "IP", "PATH", "SIZE");
     while reader.read_line(&mut line)? > 0 {
-        if let Some(log_line) = parse_line(&line, re) {
-            if log_line.status == status {
-                println!("{:<20}{:<30}{:<5}", log_line.ip, log_line.path, log_line.size);
-            }
+        if let Some(log_line) = parse_line(&line, re)
+            && log_line.status == status
+        {
+            println!(
+                "{:<20}{:<30}{:<5}",
+                log_line.ip, log_line.path, log_line.size
+            );
         }
 
         line.clear();
@@ -52,20 +59,24 @@ fn output_table<T: BufRead>(mut reader: T, status: u16, re: &Regex) -> Result<()
     Ok(())
 }
 
-pub fn run<T: BufRead>(reader: T, status: u16, re: &Regex, format: OutputFormat) -> Result<(), ScanError> {
+pub fn run<T: BufRead>(
+    reader: T,
+    status: u16,
+    re: &Regex,
+    format: OutputFormat,
+) -> Result<(), ScanError> {
     match format {
         OutputFormat::Json => output_json(reader, status, re)?,
-        OutputFormat::Table => output_table(reader, status, re)?
+        OutputFormat::Table => output_table(reader, status, re)?,
     }
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::commands::LOG_PATTERN;
     use std::io::Cursor;
-    use super::*;
 
     fn get_regex() -> Regex {
         Regex::new(LOG_PATTERN).unwrap()
@@ -74,7 +85,7 @@ mod tests {
     #[test]
     fn return_matching_lines() {
         let re = get_regex();
-        let buffer = Cursor::new(vec![
+        let buffer = Cursor::new([
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
@@ -96,7 +107,7 @@ mod tests {
     #[test]
     fn empty_buffer_returns_empty() {
         let re = get_regex();
-        let buffer = Cursor::new(vec![String::new()].join("\n"));
+        let buffer = Cursor::new([String::new()].join("\n"));
 
         let empty = compute(buffer.clone(), &re, 404).unwrap();
         assert_eq!(empty.len(), 0);
@@ -105,7 +116,7 @@ mod tests {
     #[test]
     fn malformed_line_skipped() {
         let re = get_regex();
-        let buffer = Cursor::new(vec![
+        let buffer = Cursor::new([
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
@@ -119,7 +130,5 @@ mod tests {
 
         let four_o_four = compute(buffer.clone(), &re, 404).unwrap();
         assert_eq!(four_o_four.len(), 2);
-
     }
-
 }

@@ -1,13 +1,13 @@
 use crate::{cli::OutputFormat, commands::parse_line, error::ScanError};
-use std::{collections::HashMap, io:: BufRead};
-use serde::Serialize;
 use regex::Regex;
+use serde::Serialize;
+use std::{collections::HashMap, io::BufRead};
 
 #[derive(Serialize)]
 struct StatusEntry {
     status: u16,
     count: usize,
-    meaning: &'static str
+    meaning: &'static str,
 }
 
 pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Result<(), ScanError> {
@@ -17,7 +17,7 @@ pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Resul
     while reader.read_line(&mut line)? > 0 {
         if let Some(log_line) = parse_line(&line, re) {
             *status_counts.entry(log_line.status).or_insert(0) += 1;
-        } 
+        }
         line.clear()
     }
 
@@ -29,27 +29,37 @@ pub fn run<T: BufRead>(mut reader: T, re: &Regex, format: OutputFormat) -> Resul
     Ok(())
 }
 
-fn output_table(counts: HashMap<u16, usize>) -> Result<(), ScanError>{
+fn output_table(counts: HashMap<u16, usize>) -> Result<(), ScanError> {
     let mut pairs: Vec<_> = counts.iter().collect();
-    pairs.sort_by(|a,b| a.0.cmp(b.0));
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
 
-    println!("{:<5} {:<6} {:<6} {:<20}", "INDEX", "STATUS", "COUNT", "MEANING");
+    println!(
+        "{:<5} {:<6} {:<6} {:<20}",
+        "INDEX", "STATUS", "COUNT", "MEANING"
+    );
 
     for (index, (status, count)) in pairs.iter().enumerate() {
-        println!("{:<5} {:<6} {:<6} {:<20}", index + 1, status, count, status_meaning(**status));
+        println!(
+            "{:<5} {:<6} {:<6} {:<20}",
+            index + 1,
+            status,
+            count,
+            status_meaning(**status)
+        );
     }
     Ok(())
 }
 
 fn output_json(counts: HashMap<u16, usize>) -> Result<(), ScanError> {
     let mut pairs: Vec<_> = counts.iter().collect();
-    pairs.sort_by(|a,b| a.0.cmp(b.0));
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
 
-    let entries: Vec<StatusEntry> = pairs.iter()
+    let entries: Vec<StatusEntry> = pairs
+        .iter()
         .map(|(status, count)| StatusEntry {
             status: **status,
             count: **count,
-            meaning: status_meaning(**status)
+            meaning: status_meaning(**status),
         })
         .collect();
 

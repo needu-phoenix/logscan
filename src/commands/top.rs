@@ -1,9 +1,8 @@
-use crate::{commands::parse_line, cli::OutputFormat, error::ScanError};
+use crate::{cli::OutputFormat, commands::parse_line, error::ScanError};
+use regex::Regex;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::io::BufRead;
-use serde::Serialize;
-use regex::Regex;
-
 
 #[derive(Debug)]
 struct IpCounts {
@@ -16,7 +15,7 @@ struct TopEntry {
     rank: usize,
     ip: String,
     requests: usize,
-    percent: f64
+    percent: f64,
 }
 
 fn compute<T: BufRead>(mut reader: T, re: &Regex) -> Result<IpCounts, ScanError> {
@@ -33,24 +32,28 @@ fn compute<T: BufRead>(mut reader: T, re: &Regex) -> Result<IpCounts, ScanError>
             }
 
             total_parsed += 1;
-        } 
+        }
 
         line.clear();
     }
 
     let mut pairs: Vec<_> = unique_ip.into_iter().collect();
-    pairs.sort_by(|a,b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    pairs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
 
     let stats = IpCounts {
         unique_ip: pairs,
-        total_parsed
+        total_parsed,
     };
 
     Ok(stats)
-
 }
 
-pub fn run<T: BufRead>(reader: T, re: &Regex, number: usize, format: OutputFormat) -> Result<(), ScanError> {
+pub fn run<T: BufRead>(
+    reader: T,
+    re: &Regex,
+    number: usize,
+    format: OutputFormat,
+) -> Result<(), ScanError> {
     let stats = compute(reader, re)?;
     match format {
         OutputFormat::Table => output_table(&stats, number)?,
@@ -60,26 +63,32 @@ pub fn run<T: BufRead>(reader: T, re: &Regex, number: usize, format: OutputForma
     Ok(())
 }
 
-fn output_table(stats: &IpCounts, number: usize) -> Result<(), ScanError>{
-    println!("{:<5}{:<15}{:<10}{:<12}","RANK", "IP", "REQUESTS", "% OF TOTAL");
+fn output_table(stats: &IpCounts, number: usize) -> Result<(), ScanError> {
+    println!(
+        "{:<5}{:<15}{:<10}{:<12}",
+        "RANK", "IP", "REQUESTS", "% OF TOTAL"
+    );
     for (index, (ip, count)) in stats.unique_ip.iter().take(number).enumerate() {
         let pct = (*count) as f64 / stats.total_parsed as f64 * 100.0;
-        println!("{:<5}{:<20}{:<10}{:<15.2}",index + 1, ip, count, pct);
+        println!("{:<5}{:<20}{:<10}{:<15.2}", index + 1, ip, count, pct);
     }
 
     Ok(())
 }
 
 fn output_json(stats: &IpCounts, number: usize) -> Result<(), ScanError> {
-    let entries: Vec<TopEntry> = stats.unique_ip.iter().take(number).enumerate()
+    let entries: Vec<TopEntry> = stats
+        .unique_ip
+        .iter()
+        .take(number)
+        .enumerate()
         .map(|(i, (ip, count))| TopEntry {
             rank: i + 1,
             ip: (*ip).clone(),
             requests: *count,
-            percent: *count as f64 / stats.total_parsed as f64 * 100.0
+            percent: *count as f64 / stats.total_parsed as f64 * 100.0,
         })
         .collect();
-
 
     println!("{}", serde_json::to_string_pretty(&entries)?);
     Ok(())
@@ -88,8 +97,8 @@ fn output_json(stats: &IpCounts, number: usize) -> Result<(), ScanError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
     use crate::commands::LOG_PATTERN;
+    use std::io::Cursor;
 
     fn get_regex() -> Regex {
         Regex::new(LOG_PATTERN).unwrap()
@@ -98,7 +107,7 @@ mod tests {
     #[test]
     fn ranks_by_count_with_tie_breaks() {
         let re = get_regex();
-        let buffer = Cursor::new(vec![
+        let buffer = Cursor::new([
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,

@@ -1,15 +1,15 @@
 use crate::{cli::OutputFormat, commands::parse_line, error::ScanError};
+use regex::Regex;
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::io::BufRead;
-use serde::Serialize;
-use regex::Regex;
 
 #[derive(Debug, PartialEq)]
 struct Stats {
     unique_ips: HashSet<String>,
     status_count: HashMap<&'static str, usize>,
     ignored: usize,
-    total_size: u64
+    total_size: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -40,7 +40,7 @@ fn compute<T: BufRead>(mut reader: T, re: &Regex) -> Result<Stats, ScanError> {
     };
 
     let mut line = String::new();
-    
+
     while reader.read_line(&mut line)? > 0 {
         if let Some(log_line) = parse_line(&line, re) {
             let key = match log_line.status {
@@ -48,7 +48,7 @@ fn compute<T: BufRead>(mut reader: T, re: &Regex) -> Result<Stats, ScanError> {
                 300..=399 => "3xx",
                 400..=499 => "4xx",
                 500..=599 => "5xx",
-                _ => "unknown"
+                _ => "unknown",
             };
 
             *stats.status_count.entry(key).or_insert(0) += 1;
@@ -88,19 +88,18 @@ fn output_json(stats: &Stats) -> Result<(), ScanError> {
         unique_ips: stats.unique_ips.len(),
         total_bytes: stats.total_size,
         ignored_lines: stats.ignored,
-        status_breakdown: stats.status_count.clone()
+        status_breakdown: stats.status_count.clone(),
     };
 
     println!("{}", serde_json::to_string_pretty(&output)?);
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::commands::LOG_PATTERN;
     use std::io::Cursor;
-    use super::*;
 
     fn get_regex() -> Regex {
         Regex::new(LOG_PATTERN).unwrap()
@@ -108,7 +107,7 @@ mod tests {
 
     #[test]
     fn count_total_request_works() {
-        let data = Cursor::new(vec![
+        let data = Cursor::new([
             r#"203.0.113.11 - - [10/Oct/2025:11:42:49 +0000] "GET /api/login HTTP/1.1" 404 0 "https://twitter.com/" "python-requests/2.31.0""#, 
             r#"198.51.100.7 - - [10/Oct/2025:11:42:11 +0000] "GET /blog/post-2 HTTP/1.1" 301 - "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)""#,
             r#"198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#
@@ -124,7 +123,7 @@ mod tests {
 
     #[test]
     fn count_malformed_lines_works() {
-        let data = Cursor::new(vec![
+        let data = Cursor::new([
             r#"203.0.113.11 - - [10/Oct/2025:11:42:49 +0000] "/api/login HTTP/1.1" 404 0 "https://twitter.com/" "python-requests/2.31.0""#, 
             r#"198.51.100.7 - - [10/Oct/2025:11:42:11 +0000] "GET /blog/post-2 HTTP/1.1"  - "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)""#,
             r#"AB198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
@@ -135,15 +134,14 @@ mod tests {
         let re = get_regex();
 
         let result = compute(data, &re).unwrap();
-        
-    
+
         assert_eq!(result.ignored, 3);
         assert_eq!(result.status_count.values().sum::<usize>(), 2);
     }
 
     #[test]
     fn count_unique_ip_and_bytes() {
-        let data = Cursor::new(vec![
+        let data = Cursor::new([
             r#"203.0.113.11 - - [10/Oct/2025:11:42:49 +0000] "/api/login HTTP/1.1" 404 0 "https://twitter.com/" "python-requests/2.31.0""#, 
             r#"198.51.100.7 - - [10/Oct/2025:11:42:11 +0000] "GET /blog/post-2 HTTP/1.1"  - "-" "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)""#,
             r#"AB198.51.100.7 - - [10/Oct/2025:11:40:43 +0000] "POST /app.js HTTP/1.1" 200 234 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36""#,
