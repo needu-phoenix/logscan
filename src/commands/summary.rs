@@ -100,7 +100,6 @@ fn output_json(stats: &Stats) -> Result<(), ScanError> {
 mod tests {
     use crate::commands::LOG_PATTERN;
     use std::io::Cursor;
-    use regex::Regex;
     use super::*;
 
     fn get_regex() -> Regex {
